@@ -7,21 +7,22 @@ output:
 
 
 ## Loading and preprocessing the data
+```{r}
 data<-read.csv('/Users/sumeetmishra/Desktop/R_Programing/activity.csv')
 #total steps per day
 totalSteps<-tapply(data$steps, data$date, FUN=sum, na.rm=TRUE)
 
-
+```
 
 ## What is mean total number of steps taken per day?
-
+```{r}
 hist(totalSteps, xlab="Total Number of Steps Taken Per Day")
 mean(totalSteps, na.rm=TRUE)
 median(totalSteps, na.rm=TRUE)
-
+```
 
 ## What is the average daily activity pattern?
-
+```{r}
 library(ggplot2)
 averageSteps <- aggregate(x=list(steps=data$steps), by=list(interval=data$interval),
                       FUN=mean, na.rm=TRUE)
@@ -31,8 +32,9 @@ plot<-ggplot(data=averageSteps, aes(x=interval, y=steps)) +
   ylab("Average Number of Steps Taken")
 print(plot)
 averageSteps[which.max(averageSteps$steps),]
-
+```
 ## Imputing missing values
+```{r}
 NAs<- is.na(data$steps)
 # Number of NA's
 table(NAs)
@@ -59,10 +61,10 @@ hist(totalSteps_withoutNA, xlab="Total Number of Steps Taken Per Day without NA 
 mean(totalSteps_withoutNA)
 median(totalSteps_withoutNA)
 
-
+```
 
 ## Are there differences in activity patterns between weekdays and weekends?
-
+```{r}
 weekday.or.weekend <- function(date) {
   day <- weekdays(date)
   if (day %in% c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday"))
@@ -81,3 +83,4 @@ averageSteps <- aggregate(steps ~ interval + day, data=data_withoutNA, mean)
 ggplot(averageSteps, aes(interval, steps)) + geom_line() + facet_grid(day ~ .) +
   xlab("5-minute interval") + ylab("Number of steps")
 
+```
