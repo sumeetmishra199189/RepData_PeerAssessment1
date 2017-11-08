@@ -10,20 +10,26 @@ output:
 ```{r}
 data<-read.csv('/Users/sumeetmishra/Desktop/R_Programing/activity.csv')
 #total steps per day
-totalSteps<-tapply(data$steps, data$date, FUN=sum, na.rm=TRUE)
+totalSteps<-aggregate(data$steps~data$date, FUN=sum,)
+colnames(totalSteps)<- c("Date", "Steps")
+
+data$day <- weekdays(as.Date(data$date))
+data$DateTime<- as.POSIXct(data$date, format="%Y-%m-%d")
 
 ```
 
 ## What is mean total number of steps taken per day?
 ```{r}
-hist(totalSteps, xlab="Total Number of Steps Taken Per Day")
-mean(totalSteps, na.rm=TRUE)
-median(totalSteps, na.rm=TRUE)
+hist(totalSteps$Steps, breaks=5, xlab="Steps", main = "Total Steps per Day")
+as.integer(mean(totalSteps$Steps, na.rm=TRUE))
+as.integer(median(totalSteps$Steps, na.rm=TRUE))
+
 ```
 
 ## What is the average daily activity pattern?
 ```{r}
 library(ggplot2)
+library(plyr)
 averageSteps <- aggregate(x=list(steps=data$steps), by=list(interval=data$interval),
                       FUN=mean, na.rm=TRUE)
 plot<-ggplot(data=averageSteps, aes(x=interval, y=steps)) +
@@ -32,34 +38,44 @@ plot<-ggplot(data=averageSteps, aes(x=interval, y=steps)) +
   ylab("Average Number of Steps Taken")
 print(plot)
 averageSteps[which.max(averageSteps$steps),]
+
+clean <- data[!is.na(data$steps),]
+avgTable <- ddply(clean, .(interval, day), summarize, Avg = mean(steps))
+
 ```
 ## Imputing missing values
 ```{r}
 NAs<- is.na(data$steps)
-# Number of NA's
-table(NAs)
+## Create dataset with all NAs for substitution
+NAs<- data[is.na(data$steps),]
+## Merge NA data with average weekday interval for substitution
+newdata<-merge(NAs, avgTable, by=c("interval", "day"))
 
-data_withoutNA <- split(data, data$interval)
-data_withoutNA <- lapply(data_withoutNA, function(x) {
-  x$steps[which(is.na(x$steps))] <- mean(x$steps, na.rm = TRUE)
-  return(x)
-})
-data_withoutNA <- do.call("rbind", data_withoutNA)
-row.names(data_withoutNA) <- NULL
+newdata2<- newdata[,c(6,4,1,2,5)]
+colnames(newdata2)<- c("steps", "date", "interval", "day", "DateTime")
 
-data_withoutNA <- split(data_withoutNA, data_withoutNA$date)
-df <- lapply(data_withoutNA, function(x) {
-  x$steps[which(is.na(x$steps))] <- mean(x$steps, na.rm = TRUE)
-  return(x)
-})
-data_withoutNA <- do.call("rbind", data_withoutNA)
-row.names(data_withoutNA) <- NULL
-head(data_withoutNA)
+##Merge the NA averages and non NA data together
+data_withoutNA<- rbind(clean, newdata2)
 
-totalSteps_withoutNA <- tapply(data_withoutNA$steps, data_withoutNA$date, FUN=sum)
-hist(totalSteps_withoutNA, xlab="Total Number of Steps Taken Per Day without NA Values Added")
+
+totalSteps_withoutNA <- aggregate(data_withoutNA$steps~data_withoutNA$date, FUN=sum)
+colnames(totalSteps_withoutNA)<- c("Date", "Steps")
+
+as.integer(mean(totalSteps_withoutNA$Steps))
+as.integer(median(totalSteps_withoutNA$Steps))
+
+
+## Creating the histogram of total steps per day, categorized by data set to show impact
+
+
+hist(totalSteps_withoutNA$Steps, breaks=5, xlab="Steps", main = "Total Steps per Day with NAs Fixed", col="Black")
+hist(totalSteps$Steps, breaks=5, xlab="Steps", main = "Total Steps per Day with NAs Fixed", col="Grey", add=T)
+legend("topright", c("Imputed Data", "Non-NA Data"), fill=c("black", "grey") )
+
+
 mean(totalSteps_withoutNA)
 median(totalSteps_withoutNA)
+
 
 ```
 

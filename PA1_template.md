@@ -11,37 +11,42 @@ output:
 ```r
 data<-read.csv('/Users/sumeetmishra/Desktop/R_Programing/activity.csv')
 #total steps per day
-totalSteps<-tapply(data$steps, data$date, FUN=sum, na.rm=TRUE)
+totalSteps<-aggregate(data$steps~data$date, FUN=sum,)
+colnames(totalSteps)<- c("Date", "Steps")
+
+data$day <- weekdays(as.Date(data$date))
+data$DateTime<- as.POSIXct(data$date, format="%Y-%m-%d")
 ```
 
 ## What is mean total number of steps taken per day?
 
 ```r
-hist(totalSteps, xlab="Total Number of Steps Taken Per Day")
+hist(totalSteps$Steps, breaks=5, xlab="Steps", main = "Total Steps per Day")
 ```
 
 ![plot of chunk unnamed-chunk-2](figure/unnamed-chunk-2-1.png)
 
 ```r
-mean(totalSteps, na.rm=TRUE)
+as.integer(mean(totalSteps$Steps, na.rm=TRUE))
 ```
 
 ```
-## [1] 9354.23
+## [1] 10766
 ```
 
 ```r
-median(totalSteps, na.rm=TRUE)
+as.integer(median(totalSteps$Steps, na.rm=TRUE))
 ```
 
 ```
-## [1] 10395
+## [1] 10765
 ```
 
 ## What is the average daily activity pattern?
 
 ```r
 library(ggplot2)
+library(plyr)
 averageSteps <- aggregate(x=list(steps=data$steps), by=list(interval=data$interval),
                       FUN=mean, na.rm=TRUE)
 plot<-ggplot(data=averageSteps, aes(x=interval, y=steps)) +
@@ -61,52 +66,52 @@ averageSteps[which.max(averageSteps$steps),]
 ##     interval    steps
 ## 104      835 206.1698
 ```
+
+```r
+clean <- data[!is.na(data$steps),]
+avgTable <- ddply(clean, .(interval, day), summarize, Avg = mean(steps))
+```
 ## Imputing missing values
 
 ```r
 NAs<- is.na(data$steps)
-# Number of NA's
-table(NAs)
+## Create dataset with all NAs for substitution
+NAs<- data[is.na(data$steps),]
+## Merge NA data with average weekday interval for substitution
+newdata<-merge(NAs, avgTable, by=c("interval", "day"))
+
+newdata2<- newdata[,c(6,4,1,2,5)]
+colnames(newdata2)<- c("steps", "date", "interval", "day", "DateTime")
+
+##Merge the NA averages and non NA data together
+data_withoutNA<- rbind(clean, newdata2)
+
+
+totalSteps_withoutNA <- aggregate(data_withoutNA$steps~data_withoutNA$date, FUN=sum)
+colnames(totalSteps_withoutNA)<- c("Date", "Steps")
+
+as.integer(mean(totalSteps_withoutNA$Steps))
 ```
 
 ```
-## NAs
-## FALSE  TRUE 
-## 15264  2304
-```
-
-```r
-data_withoutNA <- split(data, data$interval)
-data_withoutNA <- lapply(data_withoutNA, function(x) {
-  x$steps[which(is.na(x$steps))] <- mean(x$steps, na.rm = TRUE)
-  return(x)
-})
-data_withoutNA <- do.call("rbind", data_withoutNA)
-row.names(data_withoutNA) <- NULL
-
-data_withoutNA <- split(data_withoutNA, data_withoutNA$date)
-df <- lapply(data_withoutNA, function(x) {
-  x$steps[which(is.na(x$steps))] <- mean(x$steps, na.rm = TRUE)
-  return(x)
-})
-data_withoutNA <- do.call("rbind", data_withoutNA)
-row.names(data_withoutNA) <- NULL
-head(data_withoutNA)
-```
-
-```
-##       steps       date interval
-## 1 1.7169811 2012-10-01        0
-## 2 0.3396226 2012-10-01        5
-## 3 0.1320755 2012-10-01       10
-## 4 0.1509434 2012-10-01       15
-## 5 0.0754717 2012-10-01       20
-## 6 2.0943396 2012-10-01       25
+## [1] 10821
 ```
 
 ```r
-totalSteps_withoutNA <- tapply(data_withoutNA$steps, data_withoutNA$date, FUN=sum)
-hist(totalSteps_withoutNA, xlab="Total Number of Steps Taken Per Day without NA Values Added")
+as.integer(median(totalSteps_withoutNA$Steps))
+```
+
+```
+## [1] 11015
+```
+
+```r
+## Creating the histogram of total steps per day, categorized by data set to show impact
+
+
+hist(totalSteps_withoutNA$Steps, breaks=5, xlab="Steps", main = "Total Steps per Day with NAs Fixed", col="Black")
+hist(totalSteps$Steps, breaks=5, xlab="Steps", main = "Total Steps per Day with NAs Fixed", col="Grey", add=T)
+legend("topright", c("Imputed Data", "Non-NA Data"), fill=c("black", "grey") )
 ```
 
 ![plot of chunk unnamed-chunk-4](figure/unnamed-chunk-4-1.png)
@@ -116,7 +121,12 @@ mean(totalSteps_withoutNA)
 ```
 
 ```
-## [1] 10766.19
+## Warning in mean.default(totalSteps_withoutNA): argument is not numeric or
+## logical: returning NA
+```
+
+```
+## [1] NA
 ```
 
 ```r
@@ -124,7 +134,7 @@ median(totalSteps_withoutNA)
 ```
 
 ```
-## [1] 10766.19
+## Error in median.default(totalSteps_withoutNA): need numeric data
 ```
 
 ## Are there differences in activity patterns between weekdays and weekends?
